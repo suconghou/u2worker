@@ -187,24 +187,26 @@ class pageParser extends infoGetter {
         super();
         this.vid = vid;
         this.fetch = fetch;
-        this.videoPageURL = `${baseURL}/watch?v=${vid}&spf=prefetch`;
+        this.videoPageURL = `${baseURL}/watch?v=${vid}`;
     }
     async init() {
-        const pageData = JSON.parse(await this.fetch(this.videoPageURL));
-        if (!Array.isArray(pageData)) {
-            throw new Error("video page data error");
+        const text = await this.fetch(this.videoPageURL);
+        if (!text) {
+            throw new Error("get page data failed");
         }
+        const arr = text.match(/ytplayer\.config\s*=\s*({.+?});ytplayer/);
+        if (arr.length < 2) {
+            throw new Error("ytplayer config not found");
+        }
+        const data = JSON.parse(arr[1]);
         let jsPath, player_response;
-        for (let item of pageData) {
-            if (item && item.title && item.data) {
-                const data = item.data;
-                player_response = JSON.parse(data.swfcfg.args.player_response);
-                jsPath = data.swfcfg.assets.js;
-            }
-        }
-        if (!player_response || !jsPath) {
+        const args = data.args;
+        const assets = data.assets;
+        if (!args || !assets) {
             throw new Error("not found player_response");
         }
+        jsPath = assets.js;
+        player_response = JSON.parse(args.player_response);
         if (!player_response.streamingData || !player_response.videoDetails) {
             throw new Error("invalid player_response");
         }
