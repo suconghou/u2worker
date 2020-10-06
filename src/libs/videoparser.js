@@ -119,6 +119,11 @@ class infoGetter {
             'author': this.videoDetails.author,
         };
         const streams = {};
+        info['streams'] = streams;
+        if (this.error) {
+            info['error'] = this.error;
+            return info;
+        }
         for (let item of this.streamingData.formats) {
             const itag = item.itag;
             const s = {
@@ -147,7 +152,6 @@ class infoGetter {
             }
             streams[itag] = s;
         }
-        info['streams'] = streams;
         return info;
     }
     async buildURL(item) {
@@ -231,6 +235,9 @@ class infoParser extends infoGetter {
         const player_response = JSON.parse(data.player_response);
         if (!player_response) {
             throw new Error("empty player_response");
+        }
+        if (player_response.playabilityStatus.status == 'UNPLAYABLE') {
+            this.error = player_response.playabilityStatus.reason;
         }
         this.videoDetails = player_response.videoDetails;
         this.streamingData = player_response.streamingData;
