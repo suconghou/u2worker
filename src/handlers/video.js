@@ -6,7 +6,7 @@ const baseURL = ''//'https://u2parse.now.sh/api'
 const init = {
     "method": "GET",
     "headers": {
-        'User-Agent': "video fetcher"
+        'User-Agent': "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.75 Safari/537.36"
     },
     "cf": {
         cacheEverything: true,
@@ -77,7 +77,7 @@ const videoInfoParse = async (vid) => {
         status: 200,
         headers: {
             ...headers,
-            'Content-Type': 'text/json',
+            'Content-Type': 'application/json',
             'cache-control': `public,max-age=9999${(+new Date() - start)}`
         },
     }

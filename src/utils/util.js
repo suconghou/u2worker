@@ -29,7 +29,7 @@ export const expire = () => {
 }
 
 export const fetchInit = async (url) => {
-    const headers = { 'User-Agent': 'fetch init' }
+    const headers = { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.75 Safari/537.36' }
     return fetch(url, {
         headers,
         method: 'GET',
