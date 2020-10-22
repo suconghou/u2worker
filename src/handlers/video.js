@@ -38,7 +38,11 @@ export default async event => {
         }
         cacheItem = await res.json()
     } else {
-        cacheItem = await videoURLParse(vid, itag)
+        try {
+            cacheItem = await videoURLParse(vid, itag)
+        } catch (e) {
+            return new Response(JSON.stringify({ code: -1, msg: e.message || e.stack || e }), { status: 200, headers })
+        }
     }
     if (!cacheItem.url) {
         return new Response("invalid url", { status: 500, headers })
@@ -53,7 +57,11 @@ export const videoInfo = async event => {
     const matches = event.request.url.match(/\/video\/([\w\-]{6,12})\.json/)
     const vid = matches[1]
     if (!baseURL) {
-        return videoInfoParse(vid)
+        try {
+            return await videoInfoParse(vid)
+        } catch (e) {
+            return new Response(JSON.stringify({ code: -1, msg: e.message || e.stack || e }), { status: 200, headers })
+        }
     }
     const target = baseURL + matches[0];
     return applyRequest(event, target, init, headers)

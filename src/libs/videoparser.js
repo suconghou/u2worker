@@ -199,7 +199,7 @@ class pageParser extends infoGetter {
             throw new Error("get page data failed");
         }
         const arr = text.match(/ytplayer\.config\s*=\s*({.+?});ytplayer/);
-        if (arr.length < 2) {
+        if (!arr || arr.length < 2) {
             throw new Error("ytplayer config not found");
         }
         const data = JSON.parse(arr[1]);
@@ -230,14 +230,25 @@ class infoParser extends infoGetter {
     async init() {
         const data = parseQuery(await this.fetch(this.videoInfoURL));
         if (data.status !== 'ok') {
-            throw new Error(`${data.status}:code ${data.errorcode},reason ${data.reason}`);
+            throw new Error(`${data.status}:code ${data.errorcode},reason ${data.reason.replace(/\+/g, ' ')}`);
         }
         const player_response = JSON.parse(data.player_response);
         if (!player_response) {
             throw new Error("empty player_response");
         }
-        if (player_response.playabilityStatus.status == 'UNPLAYABLE') {
-            this.error = player_response.playabilityStatus.reason;
+        const ps = player_response.playabilityStatus;
+        if (['UNPLAYABLE', 'LOGIN_REQUIRED', 'ERROR'].includes(ps.status)) {
+            // 私享视频 视频信息都获取不到,必须终止
+            const { reason, errorScreen } = ps;
+            let subreason = reason || ps.status;
+            if (errorScreen && errorScreen.playerErrorMessageRenderer && errorScreen.playerErrorMessageRenderer.subreason) {
+                subreason += ' ' + errorScreen.playerErrorMessageRenderer.subreason.simpleText;
+            }
+            subreason = subreason.replace(/\+/g, ' ');
+            if (['LOGIN_REQUIRED', 'ERROR'].includes(ps.status)) {
+                throw new Error(subreason);
+            }
+            this.error = subreason;
         }
         this.videoDetails = player_response.videoDetails;
         this.streamingData = player_response.streamingData;
