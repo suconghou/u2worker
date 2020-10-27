@@ -1,5 +1,9 @@
 // 当前的http执行器是cf worker的fetch
 // 可以改写成基于xhr或node http request都可以
+const headers = new Headers({
+    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.14; rv:74.0) Gecko/20100101 Firefox/74.0',
+    'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+});
 const cache = new Map();
 const get = (key) => {
     const item = cache.get(key);
@@ -28,7 +32,6 @@ const ajax = async (url) => {
     if (text) {
         return text;
     }
-    const headers = { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.14; rv:74.0) Gecko/20100101 Firefox/74.0' };
     const init = {
         headers,
         method: 'GET',
@@ -223,22 +226,29 @@ class pageParser extends infoGetter {
         this.videoPageURL = `${baseURL}/watch?v=${vid}`;
     }
     async init() {
+        let jsPath;
         const text = await this.fetch(this.videoPageURL);
         if (!text) {
             throw new Error("get page data failed");
+        }
+        const jsPathReg = text.match(/"jsUrl":"(\/s\/player.*?base.js)"/);
+        if (jsPathReg && jsPathReg.length == 2) {
+            jsPath = jsPathReg[1];
         }
         const arr = text.match(/ytplayer\.config\s*=\s*({.+?});ytplayer/);
         if (!arr || arr.length < 2) {
             throw new Error("ytplayer config not found");
         }
         const data = JSON.parse(arr[1]);
-        let jsPath, player_response;
+        let player_response;
         const args = data.args;
         const assets = data.assets;
-        if (!args || !assets) {
+        if (!args) {
             throw new Error("not found player_response");
         }
-        jsPath = assets.js;
+        if (!jsPath && assets && assets.js) {
+            jsPath = assets.js;
+        }
         player_response = JSON.parse(args.player_response);
         if (!player_response.streamingData || !player_response.videoDetails) {
             throw new Error("invalid player_response");
