@@ -1,6 +1,33 @@
 // 当前的http执行器是cf worker的fetch
 // 可以改写成基于xhr或node http request都可以
+const cache = new Map();
+const get = (key) => {
+    const item = cache.get(key);
+    if (item) {
+        if (item.expire > +new Date()) {
+            return item.value;
+        }
+        else {
+            expire();
+        }
+    }
+};
+const set = (key, value, ttl = 3600e3) => {
+    cache.set(key, { value, expire: +new Date() + ttl });
+};
+const expire = () => {
+    const t = +new Date();
+    for (let [k, v] of cache) {
+        if (v.expire < t) {
+            cache.delete(k);
+        }
+    }
+};
 const ajax = async (url) => {
+    let text = get(url);
+    if (text) {
+        return text;
+    }
     const headers = { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.14; rv:74.0) Gecko/20100101 Firefox/74.0' };
     const init = {
         headers,
@@ -12,7 +39,9 @@ const ajax = async (url) => {
         }
     };
     const r = await fetch(url, init);
-    return await r.text();
+    text = await r.text();
+    set(url, text);
+    return text;
 };
 
 const parseQuery = (str) => {
