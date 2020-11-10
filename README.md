@@ -53,6 +53,8 @@ open https://video.feds.club/setting
 
 fill `{worker doamin}/video` such as `https://stream.pull.workers.dev/video` into `视频解析服务`
 
+click `保存`
+
 reload the page , watch some video, it should work
 
 if not , use `Chrome DevTools` to see what's happening
