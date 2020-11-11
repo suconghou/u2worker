@@ -269,7 +269,7 @@ class infoParser extends infoGetter {
     async init() {
         const data = parseQuery(await this.fetch(this.videoInfoURL));
         if (data.status !== 'ok') {
-            throw new Error(`${data.status}:code ${data.errorcode},reason ${data.reason.replace(/\+/g, ' ')}`);
+            throw new Error(`${data.status}:code ${data.errorcode},reason ${data.reason}`);
         }
         const player_response = JSON.parse(data.player_response);
         if (!player_response) {
