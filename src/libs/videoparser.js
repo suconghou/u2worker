@@ -1,5 +1,3 @@
-// 当前的http执行器是cf worker的fetch
-// 可以改写成基于xhr或node http request都可以
 const headers = new Headers({
     'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.14; rv:74.0) Gecko/20100101 Firefox/74.0',
     'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
@@ -32,6 +30,12 @@ const ajax = async (url) => {
     if (text) {
         return text;
     }
+    if (CACHE) {
+        text = await CACHE.get(url);
+        if (text) {
+            return text;
+        }
+    }
     const init = {
         headers,
         method: 'GET',
@@ -44,6 +48,9 @@ const ajax = async (url) => {
     const r = await fetch(url, init);
     text = await r.text();
     set(url, text);
+    if (CACHE) {
+        await CACHE.put(url, text, { expirationTtl: 7200 });
+    }
     return text;
 };
 

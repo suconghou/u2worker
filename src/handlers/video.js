@@ -1,7 +1,6 @@
-import { fetchInit, applyRequest, get, set } from '../utils/util'
+import { applyRequest, get, set } from '../utils/util'
 import videoParser from '../libs/videoparser'
 
-const baseURL = ''//'https://u2parse.now.sh/api'
 
 const init = {
     "method": "GET",
@@ -30,19 +29,10 @@ export default async event => {
         return applyRequest(event, `${cacheItem.url}&range=${matches[3]}`, init, c)
     }
     const start = +new Date()
-    if (baseURL) {
-        const res = await fetchInit(`${baseURL}/video/${cacheKey}.json`)
-        if (res.status !== 200) {
-            res.headers = { ...res.headers, ...headers }
-            return res
-        }
-        cacheItem = await res.json()
-    } else {
-        try {
-            cacheItem = await videoURLParse(vid, itag)
-        } catch (e) {
-            return new Response(JSON.stringify({ code: -1, msg: e.message || e.stack || e }), { status: 200, headers })
-        }
+    try {
+        cacheItem = await videoURLParse(vid, itag)
+    } catch (e) {
+        return new Response(JSON.stringify({ code: -1, msg: e.message || e.stack || e }), { status: 200, headers })
     }
     if (!cacheItem.url) {
         return new Response("invalid url", { status: 500, headers })
@@ -56,15 +46,11 @@ export default async event => {
 export const videoInfo = async event => {
     const matches = event.request.url.match(/\/video\/([\w\-]{6,12})\.json/)
     const vid = matches[1]
-    if (!baseURL) {
-        try {
-            return await videoInfoParse(vid)
-        } catch (e) {
-            return new Response(JSON.stringify({ code: -1, msg: e.message || e.stack || e }), { status: 200, headers })
-        }
+    try {
+        return await videoInfoParse(vid)
+    } catch (e) {
+        return new Response(JSON.stringify({ code: -1, msg: e.message || e.stack || e }), { status: 200, headers })
     }
-    const target = baseURL + matches[0];
-    return applyRequest(event, target, init, headers)
 }
 
 const videoURLParse = async (vid, itag) => {
