@@ -242,6 +242,9 @@ class pageParser extends infoGetter {
         if (jsPathReg && jsPathReg.length == 2) {
             jsPath = jsPathReg[1];
         }
+        if (jsPath) {
+            store.set("jsPath", jsPath);
+        }
         const arr = text.match(/ytplayer\.config\s*=\s*({.+?});ytplayer/);
         if (!arr || arr.length < 2) {
             throw new Error("ytplayer config not found");
@@ -256,6 +259,9 @@ class pageParser extends infoGetter {
         if (!jsPath && assets && assets.js) {
             jsPath = assets.js;
         }
+        if (jsPath) {
+            store.set("jsPath", jsPath);
+        }
         player_response = JSON.parse(args.player_response);
         if (!player_response.streamingData || !player_response.videoDetails) {
             throw new Error("invalid player_response");
@@ -263,7 +269,6 @@ class pageParser extends infoGetter {
         this.jsPath = jsPath;
         this.videoDetails = player_response.videoDetails;
         this.streamingData = player_response.streamingData;
-        store.set("jsPath", jsPath);
     }
 }
 class infoParser extends infoGetter {
@@ -305,6 +310,9 @@ class parser {
     constructor(vid, fetch) {
         this.vid = vid;
         this.fetch = fetch;
+        if (!vid || typeof fetch != 'function') {
+            throw new Error("invalid params");
+        }
     }
     async initParser() {
         try {
