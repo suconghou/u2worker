@@ -49,7 +49,7 @@ const ajax = async (url) => {
     text = await r.text();
     set(url, text);
     if (CACHE) {
-        await CACHE.put(url, text, { expirationTtl: 7200 });
+        await CACHE.put(url, text, { expirationTtl: url.substr(-2) === 'js' ? 86400 : 7200 });
     }
     return text;
 };
