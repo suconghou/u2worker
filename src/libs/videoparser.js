@@ -324,7 +324,12 @@ class infoParser extends infoGetter {
             const { reason, errorScreen } = ps;
             let subreason = reason || ps.status;
             if (errorScreen && errorScreen.playerErrorMessageRenderer && errorScreen.playerErrorMessageRenderer.subreason) {
-                subreason += ' ' + errorScreen.playerErrorMessageRenderer.subreason.simpleText;
+                const r = errorScreen.playerErrorMessageRenderer.subreason.runs;
+                let s = '';
+                if (r && r[0] && r[0].text) {
+                    s = ' ' + r[0].text;
+                }
+                subreason += s;
             }
             subreason = subreason.replace(/\+/g, ' ');
             if (['LOGIN_REQUIRED', 'ERROR'].includes(ps.status)) {
