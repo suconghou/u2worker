@@ -32,7 +32,7 @@ export default async event => {
     try {
         cacheItem = await videoURLParse(vid, itag)
     } catch (e) {
-        return new Response(JSON.stringify({ code: -1, msg: e.message || e.stack || e }), { status: 200, headers })
+        return new Response(JSON.stringify({ code: -1, msg: e.message || e.stack || e }), { status: 500, headers })
     }
     if (!cacheItem.url) {
         return new Response("invalid url", { status: 500, headers })
