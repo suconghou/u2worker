@@ -33,6 +33,7 @@ const ajax = async (url) => {
     if (CACHE) {
         text = await CACHE.get(url);
         if (text) {
+            set(url, text);
             return text;
         }
     }
