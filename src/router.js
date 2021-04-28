@@ -74,7 +74,7 @@ class Router {
     // resolve returns the matching route, if any
     resolve(req) {
         return this.routes.find(r => {
-            if (!r.conditions || (Array.isArray(r) && !r.conditions.length)) {
+            if (!r.conditions || (Array.isArray(r.conditions) && !r.conditions.length)) {
                 return true
             }
 
