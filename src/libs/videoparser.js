@@ -313,7 +313,7 @@ class infoParser extends infoGetter {
     async init() {
         const infostr = await this.fetch(this.videoInfoURL);
         if (!infostr.includes('status') && infostr.split('&').length < 5) {
-            throw new Error(infostr);
+            throw new Error("get_video_info error :" + infostr);
         }
         const data = parseQuery(infostr);
         if (data.status !== 'ok') {
