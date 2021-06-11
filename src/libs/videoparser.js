@@ -308,7 +308,7 @@ class infoParser extends infoGetter {
         super();
         this.vid = vid;
         this.fetch = fetch;
-        this.videoInfoURL = `${baseURL}/get_video_info?video_id=${vid}`;
+        this.videoInfoURL = `${baseURL}/get_video_info?video_id=${vid}&html5=1`;
     }
     async init() {
         const infostr = await this.fetch(this.videoInfoURL);
