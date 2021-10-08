@@ -19,16 +19,16 @@ const headers = {
 }
 
 export default async event => {
+    const start = Date.now()
     const matches = event.request.url.match(/\/video\/([\w\-]{6,12})\/(\d{1,3})\/(\d+-\d+)\.ts/)
     const vid = matches[1]
     const itag = matches[2]
     const cacheKey = `${vid}/${itag}`
     let cacheItem = get(cacheKey)
     if (cacheItem) {
-        const c = { ...headers, 'cache-control': 'public,max-age=864000' };
+        const c = { ...headers, 'cache-control': `public,max-age=88888${Date.now() - start}` };
         return applyRequest(event, `${cacheItem.url}&range=${matches[3]}`, init, c)
     }
-    const start = +new Date()
     try {
         cacheItem = await videoURLParse(vid, itag)
     } catch (e) {
