@@ -67,6 +67,9 @@ const videoInfoParse = async (vid) => {
         info = await parser.info()
         set(vid, info)
     }
+    for (let item of Object.values(info.streams || {})) {
+        delete item.url
+    }
     const init = {
         status: 200,
         headers: {
