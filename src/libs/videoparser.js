@@ -2,6 +2,11 @@ const headers = new Headers({
     'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.14; rv:74.0) Gecko/20100101 Firefox/74.0',
     'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
 });
+const headers_ = new Headers({
+    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.14; rv:74.0) Gecko/20100101 Firefox/74.0',
+    'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+    'Content-Type': 'application/json'
+});
 const cache = new Map();
 const get = (key) => {
     const item = cache.get(key);
@@ -54,6 +59,36 @@ const ajax = async (url) => {
     }
     return text;
 };
+const doPost = async (url, body, cacheKey) => {
+    let text = get(cacheKey);
+    if (text) {
+        return text;
+    }
+    if (CACHE) {
+        text = await CACHE.get(cacheKey);
+        if (text) {
+            set(cacheKey, text);
+            return text;
+        }
+    }
+    const init = {
+        headers: headers_,
+        method: 'POST',
+        body: body,
+        cf: {
+            cacheEverything: true,
+            cacheTtl: 3600,
+            cacheTtlByStatus: { '200-299': 3600, 404: 60, '500-599': 10 }
+        }
+    };
+    const r = await fetch(url, init);
+    text = await r.text();
+    set(cacheKey, text);
+    if (CACHE) {
+        await CACHE.put(cacheKey, text, { expirationTtl: 7200 });
+    }
+    return text;
+};
 
 const parseQuery = (str) => {
     if (!str) {
@@ -69,12 +104,12 @@ const parseQuery = (str) => {
 };
 
 class decipher {
-    constructor(jsPath, fetch) {
-        this.jsPath = jsPath;
-        this.fetch = fetch;
+    constructor(bodystr) {
+        this.bodystr = bodystr;
+        this.init();
     }
-    async init() {
-        const bodystr = await this.fetch(this.jsPath);
+    init() {
+        const bodystr = this.bodystr;
         const objResult = bodystr.match(/var ([a-zA-Z_\$][a-zA-Z_0-9]*)=\{((?:(?:[a-zA-Z_\$][a-zA-Z_0-9]*:function\(a\)\{(?:return )?a\.reverse\(\)\}|[a-zA-Z_\$][a-zA-Z_0-9]*:function\(a,b\)\{return a\.slice\(b\)\}|[a-zA-Z_\$][a-zA-Z_0-9]*:function\(a,b\)\{a\.splice\(0,b\)\}|[a-zA-Z_\$][a-zA-Z_0-9]*:function\(a,b\)\{var c=a\[0\];a\[0\]=a\[b(?:%a\.length)?\];a\[b(?:%a\.length)?\]=c(?:;return a)?\}),?\n?)+)\};/);
         if (!objResult) {
             throw new Error("objResult not match");
@@ -117,10 +152,7 @@ class decipher {
         }
         this.tokens = tokens;
     }
-    async decode(s) {
-        if (!this.tokens) {
-            await this.init();
-        }
+    decode(s) {
         let sig = s.split('');
         let pos = 0;
         for (let tok of this.tokens) {
@@ -150,8 +182,79 @@ class decipher {
 
 const baseURL = 'https://www.youtube.com';
 const store = new Map();
-class infoGetter {
-    async parse(itagURL) {
+class infoParser {
+    constructor(vid, fetch, doPost) {
+        this.vid = vid;
+        this.fetch = fetch;
+        this.doPost = doPost;
+        this.playerURL = "https://youtubei.googleapis.com/youtubei/v1/player?key=AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8";
+        this.videoPageURL = `${baseURL}/watch?v=${vid}`;
+    }
+    async init() {
+        try {
+            await this.playerParse();
+        }
+        catch (e) {
+            await this.pageParse();
+        }
+    }
+    async playerParse() {
+        const obj = {
+            "videoId": this.vid,
+            "context": {
+                "client": {
+                    "hl": "en",
+                    "gl": "US",
+                    "clientName": "ANDROID",
+                    "clientVersion": "16.02"
+                }
+            }
+        };
+        const body = JSON.stringify(obj);
+        const res = await this.doPost(this.playerURL, body, this.vid);
+        const [videoDetails, streamingData] = this.extract(res);
+        this.videoDetails = videoDetails;
+        this.streamingData = streamingData;
+    }
+    async pageParse() {
+        let jsPath;
+        const text = await this.fetch(this.videoPageURL);
+        if (!text) {
+            throw new Error("get page data failed");
+        }
+        const jsPathReg = text.match(/"jsUrl":"(\/s\/player.*?base.js)"/);
+        if (jsPathReg && jsPathReg.length == 2) {
+            jsPath = jsPathReg[1];
+        }
+        if (jsPath) {
+            store.set("jsPath", jsPath);
+        }
+        const arr = text.match(/ytInitialPlayerResponse\s+=\s+(.*}{3,});\s*var/);
+        if (!arr || arr.length < 2) {
+            throw new Error("ytInitialPlayerResponse not found");
+        }
+        const [videoDetails, streamingData] = this.extract(arr[1]);
+        this.jsPath = jsPath || store.get("jsPath");
+        this.videoDetails = videoDetails;
+        this.streamingData = streamingData;
+    }
+    extract(text) {
+        const data = JSON.parse(text);
+        if (!data) {
+            throw new Error("parse ytInitialPlayerResponse error");
+        }
+        if (!data.streamingData || !data.videoDetails || !data.playabilityStatus) {
+            throw new Error("invalid ytInitialPlayerResponse");
+        }
+        const ps = data.playabilityStatus;
+        const s = ps.status;
+        if (s != "OK") {
+            let reason = ps.reason || s;
+            throw new Error(reason);
+        }
+        return [data.videoDetails, data.streamingData];
+    }
+    async parse() {
         const info = {
             'id': this.videoDetails.videoId,
             'title': this.videoDetails.title,
@@ -171,10 +274,8 @@ class infoGetter {
                 "type": item.mimeType.replace(/\+/g, ' '),
                 "itag": itag,
                 "len": item.contentLength,
+                'url': await this.buildURL(item)
             };
-            if (itagURL == itag) {
-                s['url'] = await this.buildURL(item);
-            }
             streams[itag] = s;
         }
         for (let item of this.streamingData.adaptiveFormats) {
@@ -185,11 +286,9 @@ class infoGetter {
                 "itag": itag,
                 "len": item.contentLength,
                 "initRange": item.initRange,
-                "indexRange": item.indexRange
+                "indexRange": item.indexRange,
+                'url': await this.buildURL(item)
             };
-            if (itagURL == itag) {
-                s['url'] = await this.buildURL(item);
-            }
             streams[itag] = s;
         }
         return info;
@@ -211,11 +310,14 @@ class infoGetter {
     async signature(u) {
         const sp = u.sp || "signature";
         if (u.s) {
-            if (!this.jsPath) {
-                throw new Error("jsPath not avaiable");
+            if (!this.decipher) {
+                if (!this.jsPath) {
+                    throw new Error("jsPath not avaiable");
+                }
+                const bodystr = await this.fetch(baseURL + this.jsPath);
+                this.decipher = new decipher(bodystr);
             }
-            const d = new decipher(baseURL + this.jsPath, this.fetch);
-            const sig = await d.decode(u.s);
+            const sig = this.decipher.decode(u.s);
             return `&${sp}=${sig}`;
         }
         else if (u.sig) {
@@ -226,110 +328,19 @@ class infoGetter {
         }
     }
 }
-class pageParser extends infoGetter {
-    constructor(vid, fetch) {
-        super();
-        this.vid = vid;
-        this.fetch = fetch;
-        this.videoPageURL = `${baseURL}/watch?v=${vid}`;
-    }
-    async init() {
-        let jsPath;
-        const text = await this.fetch(this.videoPageURL);
-        if (!text) {
-            throw new Error("get page data failed");
-        }
-        const jsPathReg = text.match(/"jsUrl":"(\/s\/player.*?base.js)"/);
-        if (jsPathReg && jsPathReg.length == 2) {
-            jsPath = jsPathReg[1];
-        }
-        if (jsPath) {
-            store.set("jsPath", jsPath);
-        }
-        const [videoDetails, streamingData] = this.extract(text);
-        this.jsPath = jsPath || store.get("jsPath");
-        this.videoDetails = videoDetails;
-        this.streamingData = streamingData;
-    }
-    extract(text) {
-        const arr = text.match(/ytInitialPlayerResponse\s+=\s+(.*}{3,});\s*var/);
-        if (!arr || arr.length < 2) {
-            throw new Error("initPlayer not found");
-        }
-        const data = JSON.parse(arr[1]);
-        if (!data) {
-            throw new Error("parse initPlayer error");
-        }
-        if (!data.streamingData || !data.videoDetails) {
-            throw new Error("invalid initPlayer");
-        }
-        return [data.videoDetails, data.streamingData];
-    }
-}
-class infoParser extends infoGetter {
-    constructor(vid, fetch) {
-        super();
-        this.vid = vid;
-        this.fetch = fetch;
-        this.videoInfoURL = `${baseURL}/get_video_info?video_id=${vid}&html5=1`;
-    }
-    async init() {
-        const infostr = await this.fetch(this.videoInfoURL);
-        if (!infostr.includes('status') && infostr.split('&').length < 5) {
-            throw new Error("get_video_info error :" + infostr);
-        }
-        const data = parseQuery(infostr);
-        if (data.status !== 'ok') {
-            throw new Error(`${data.status}:code ${data.errorcode},reason ${data.reason}`);
-        }
-        const player_response = JSON.parse(data.player_response);
-        if (!player_response) {
-            throw new Error("empty player_response");
-        }
-        const ps = player_response.playabilityStatus;
-        if (['UNPLAYABLE', 'LOGIN_REQUIRED', 'ERROR'].includes(ps.status)) {
-            // 私享视频 视频信息都获取不到,必须终止
-            const { reason, errorScreen } = ps;
-            let subreason = reason || ps.status;
-            if (errorScreen && errorScreen.playerErrorMessageRenderer && errorScreen.playerErrorMessageRenderer.subreason) {
-                const r = errorScreen.playerErrorMessageRenderer.subreason.runs;
-                let s = '';
-                if (r && r[0] && r[0].text) {
-                    s = ' ' + r[0].text;
-                }
-                subreason += s;
-            }
-            subreason = subreason.replace(/\+/g, ' ');
-            if (['LOGIN_REQUIRED', 'ERROR'].includes(ps.status)) {
-                throw new Error(subreason);
-            }
-            this.error = subreason;
-        }
-        this.videoDetails = player_response.videoDetails;
-        this.streamingData = player_response.streamingData;
-        this.jsPath = store.get("jsPath");
-    }
-}
 class parser {
-    constructor(vid, fetch) {
+    constructor(vid, fetch, doPost) {
         this.vid = vid;
         this.fetch = fetch;
-        if (!vid || typeof fetch != 'function') {
+        this.doPost = doPost;
+        if (!vid || typeof fetch != 'function' || typeof doPost != 'function') {
             throw new Error("invalid params");
         }
     }
     async initParser() {
-        try {
-            const parser = new pageParser(this.vid, this.fetch);
-            await parser.init();
-            this.parser = parser;
-        }
-        catch (e) {
-            console.error(e, ' , try infoParser');
-            const parser = new infoParser(this.vid, this.fetch);
-            await parser.init();
-            this.parser = parser;
-        }
+        const parser = new infoParser(this.vid, this.fetch, this.doPost);
+        await parser.init();
+        this.parser = parser;
     }
     async info() {
         if (!this.parser) {
@@ -341,7 +352,7 @@ class parser {
         if (!this.parser) {
             await this.initParser();
         }
-        const info = await this.parser.parse(itag);
+        const info = await this.parser.parse();
         const itagInfo = info.streams[itag];
         if (!itagInfo) {
             throw new Error(`itag ${itag} not found`);
@@ -354,7 +365,7 @@ class parser {
 
 class index extends parser {
     constructor(vid) {
-        super(vid, ajax);
+        super(vid, ajax, doPost);
     }
 }
 
