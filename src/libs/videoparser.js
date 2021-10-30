@@ -241,7 +241,7 @@ class infoParser {
         if (!data) {
             throw new Error("parse ytInitialPlayerResponse error");
         }
-        if (!data.streamingData || !data.videoDetails || !data.playabilityStatus) {
+        if (!data.videoDetails || !data.playabilityStatus) {
             throw new Error("invalid ytInitialPlayerResponse");
         }
         const ps = data.playabilityStatus;
@@ -249,6 +249,9 @@ class infoParser {
         if (s != "OK") {
             let reason = ps.reason || s;
             throw new Error(reason);
+        }
+        if (!data.streamingData) {
+            throw new Error("no streamingData");
         }
         return [data.videoDetails, data.streamingData];
     }
