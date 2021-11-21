@@ -24,7 +24,7 @@ const set = (key, value, ttl = 3600e3) => {
 };
 const expire = () => {
     const t = +new Date();
-    for (let [k, v] of cache) {
+    for (const [k, v] of cache) {
         if (v.expire < t) {
             cache.delete(k);
         }
@@ -155,7 +155,7 @@ class decipher {
     decode(s) {
         let sig = s.split('');
         let pos = 0;
-        for (let tok of this.tokens) {
+        for (const tok of this.tokens) {
             if (tok.length > 1) {
                 pos = ~~tok.slice(1);
             }
@@ -247,7 +247,7 @@ class infoParser {
         const ps = data.playabilityStatus;
         const s = ps.status;
         if (s != "OK") {
-            let reason = ps.reason || s;
+            const reason = ps.reason || s;
             throw new Error(reason);
         }
         if (!data.streamingData) {
@@ -268,7 +268,7 @@ class infoParser {
             info['error'] = this.error;
             return info;
         }
-        for (let item of (this.streamingData.formats || []).concat(this.streamingData.adaptiveFormats || [])) {
+        for (const item of (this.streamingData.formats || []).concat(this.streamingData.adaptiveFormats || [])) {
             const itag = String(item.itag);
             const s = {
                 "quality": item.qualityLabel || item.quality,
@@ -361,4 +361,4 @@ class index extends parser {
     }
 }
 
-export default index;
+export { index as default };

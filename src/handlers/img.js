@@ -25,5 +25,5 @@ export default async event => {
             cacheTtlByStatus: { '200-299': 864000, 404: 60, '500-599': 10 }
         }
     }
-    return applyRequest(event, target, init)
+    return await applyRequest(event, target, init)
 }

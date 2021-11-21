@@ -21,7 +21,7 @@ export const set = (key, value, ttl = 3600e3) => {
 
 export const expire = () => {
     const t = +new Date()
-    for (let [k, v] of cache) {
+    for (const [k, v] of cache) {
         if (v.expire < t) {
             cache.delete(k)
         }
@@ -32,7 +32,7 @@ export const copyHeader = (status, headers = {}, head) => {
     const ok = status == 200 || status == 206;
     const age = ok ? 864000 : 60;
     const header = { 'cache-control': `public, max-age=${age}` }
-    for (let item of exposeHeaders) {
+    for (const item of exposeHeaders) {
         if (head.has(item)) {
             const v = head.get(item)
             if (v) {
